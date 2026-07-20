@@ -3,3 +3,21 @@ npm-debug.log*
 .env
 .env.*
 *.log
+
+# Git and GitHub
+.git/
+.gitignore
+.github/
+
+# IDEs and OS files
+.vscode/
+.idea/
+.DS_Store
+
+# Docker files
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Docs
+README.md
