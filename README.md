@@ -4,27 +4,41 @@ Sorteador para eventos ao vivo com modo de números, lista de nomes e **sorteio 
 
 ---
 
+## 🚀 Funcionalidades
+
+- **Múltiplos Modos**:
+  - **Números**: Sorteia números aleatórios dentro de um intervalo.
+  - **Lista**: Sorteia nomes ou itens a partir de uma lista preenchida.
+  - **Interativo**: Sessão ao vivo via QR Code/Código para eventos.
+- **Modo Teatro**: Painel em tela cheia otimizado para projetores e telões.
+- **Multilinguagem (i18n)**: Suporte para Português (PT), Inglês (EN) e Espanhol (ES) com detecção automática pelo navegador.
+- **Tema Personalizável**: Alternância entre Modo Claro (Sun) e Escuro (Moon).
+- **Exportação e Histórico**: Registra os sorteios e permite baixar o log detalhado em arquivo de texto.
+
+---
+
 ## 🏗️ Arquitetura
 
-- **Frontend**: SPA em HTML/JS puro, servida pelo Express
+- **Frontend**: SPA em HTML/JS puro (Vanilla), servida pelo Express. Tradução carregada via JSON de forma assíncrona.
 - **Backend**: Node.js + Express
 - **Tempo real**: Server-Sent Events (SSE) via Redis Pub/Sub
 - **Persistência**: Redis (sessões com TTL de 24h)
 - **Infraestrutura**: Docker + Docker Compose + Traefik
 
-### Estrutura de arquivos
+### Estrutura de arquivos principal
 
-```
+```text
 sorteador/
 ├── server/
-│   ├── index.js            # Entry point Express
+│   ├── index.js            # Entry point Express e config
 │   ├── redis.js            # Cliente Redis + helpers
 │   └── routes/
-│       ├── session.js      # POST /api/session, GET, join
-│       ├── draw.js         # draw, reset, regen (🔒 operatorKey)
-│       └── events.js       # GET /api/session/:code/events (SSE)
+│       ├── session.js      # Rotas gerais da sessão (join, kick-all, leave, delete)
+│       ├── draw.js         # Operações de sorteio (draw, reset, regen) 🔒
+│       └── events.js       # Stream de tempo real (SSE)
 ├── public/
-│   ├── index.html          # Frontend SPA
+│   ├── i18n/               # Arquivos de tradução (pt.json, en.json, es.json)
+│   ├── index.html          # Frontend SPA (UI e Lógica)
 │   └── logo.png
 ├── Dockerfile
 ├── docker-compose.yml
@@ -33,24 +47,18 @@ sorteador/
 
 ---
 
-## 🚀 Como Executar (Desenvolvimento)
+## ⚙️ Como Executar (Desenvolvimento)
 
 ```bash
 docker compose up
 ```
 
-Acesse: **[http://localhost:3001](http://localhost:3001)** (ou `http://sorteador.localhost` via Traefik)
-
-- **Traefik dashboard**: http://localhost:8088
+Acesse: **[http://localhost:3000](http://localhost:3000)**
 
 Para parar:
 ```bash
 docker compose down
 ```
-
-### Sem Traefik
-
-Comente o serviço `traefik` e as `labels` do serviço `app` no `docker-compose.yml`, e acesse diretamente em `http://localhost:3001`.
 
 ---
 
@@ -66,15 +74,33 @@ O modo interativo funciona com qualquer participante na internet:
 
 ### Segurança da sessão
 
-- O operador recebe um `operatorKey` (UUID) salvo no `localStorage` do navegador
-- Todas as operações de escrita (sortear, reiniciar, regenerar) requerem esse `operatorKey` no header `X-Operator-Key`
-- Participantes só podem entrar e aguardar — não podem controlar o sorteio
+- O operador recebe um `operatorKey` (UUID) salvo no `localStorage` do navegador.
+- Todas as operações de escrita da sessão requerem esse `operatorKey` no header `X-Operator-Key`.
+- Participantes só podem entrar, aguardar e sair — não controlam a sessão.
+
+---
+
+## 🔌 API Endpoints
+
+| Método   | Rota                           | Acesso      | Descrição                                 |
+|----------|--------------------------------|-------------|-------------------------------------------|
+| `GET`    | `/api/config`                  | Público     | Retorna configurações globais do servidor |
+| `POST`   | `/api/session`                 | Público     | Cria nova sessão                          |
+| `GET`    | `/api/session/:code`           | Público     | Estado atual da sessão                    |
+| `POST`   | `/api/session/:code/join`      | Público     | Participante entra na sessão              |
+| `POST`   | `/api/session/:code/leave`     | Público     | Participante sai da sessão                |
+| `GET`    | `/api/session/:code/events`    | Público     | Stream SSE em tempo real                  |
+| `POST`   | `/api/session/:code/draw`      | 🔒 Operador | Realiza sorteio                           |
+| `POST`   | `/api/session/:code/reset`     | 🔒 Operador | Reinicia a sessão                         |
+| `POST`   | `/api/session/:code/regen`     | 🔒 Operador | Regenera o código da sessão               |
+| `POST`   | `/api/session/:code/kick-all`  | 🔒 Operador | Expulsa todos os participantes            |
+| `DELETE` | `/api/session/:code`           | 🔒 Operador | Encerra e apaga a sessão                  |
 
 ---
 
 ## 🐳 Deploy em Produção (com Traefik externo)
 
-Em produção, remova o serviço `traefik` do `docker-compose.yml` e configure o domínio nas labels:
+Em produção, remova o serviço `traefik` do `docker-compose.yml` e configure o domínio nas labels do serviço:
 
 ```yaml
 labels:
@@ -87,28 +113,14 @@ labels:
   - "traefik.http.routers.sorteador.middlewares=sorteador-sse"
 ```
 
-> **Importante**: O `X-Accel-Buffering=no` é necessário para que o SSE (Server-Sent Events) funcione corretamente atrás do Traefik/Nginx sem delay.
+> **Importante**: O `X-Accel-Buffering=no` é necessário para que o SSE (Server-Sent Events) funcione corretamente atrás do Traefik/Nginx sem *delay* ou cortes.
 
 ---
 
-## 🔌 API Endpoints
+## 🔧 Variáveis de Ambiente
 
-| Método | Rota | Acesso | Descrição |
-|--------|------|--------|-----------|
-| `POST` | `/api/session` | Público | Cria nova sessão |
-| `GET` | `/api/session/:code` | Público | Estado da sessão |
-| `POST` | `/api/session/:code/join` | Público | Participante entra |
-| `GET` | `/api/session/:code/events` | Público | Stream SSE |
-| `POST` | `/api/session/:code/draw` | 🔒 Operador | Realiza sorteio |
-| `POST` | `/api/session/:code/reset` | 🔒 Operador | Reinicia sessão |
-| `POST` | `/api/session/:code/regen` | 🔒 Operador | Regenera código |
-
----
-
-## ⚙️ Variáveis de Ambiente
-
-| Variável | Padrão | Descrição |
-|----------|--------|-----------|
-| `REDIS_URL` | `redis://localhost:6379` | URL do Redis |
-| `PORT` | `3000` | Porta do servidor Node |
-| `NODE_ENV` | `development` | Ambiente de execução |
+| Variável      | Padrão                   | Descrição                    |
+|---------------|--------------------------|------------------------------|
+| `REDIS_URL`   | `redis://localhost:6379` | URL de conexão com o Redis   |
+| `PORT`        | `3000`                   | Porta do servidor Node       |
+| `NODE_ENV`    | `development`            | Ambiente de execução         |
