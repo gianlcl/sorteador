@@ -2122,7 +2122,7 @@
               <span class="text-secondary-400 bg-secondary-500/10 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">${t('history_round')} ${r.round} (${modeLabel[r.mode]})</span>
               ${r.title ? `<span class="text-primary-400 bg-primary-500/10 px-2 py-0.5 rounded-full truncate flex-shrink" title="${r.title}">${r.title}</span>` : ''}
             </div>
-            <span class="flex-shrink-0 ml-2">${r.timestamp}</span>
+            <span class="flex-shrink-0 ml-2">${isNaN(new Date(r.timestamp)) ? r.timestamp : new Date(r.timestamp).toLocaleTimeString()}</span>
           </div>
           <div class="flex flex-wrap gap-1.5 pt-1">
             ${r.winners.map(w => `<span class="chip">${w}</span>`).join('')}
@@ -2186,7 +2186,7 @@
         '=========================================',
         `   ${t('export_header')}`,
         '=========================================',
-        `${t('export_generated')}                 ${new Date().toLocaleString('pt-BR')}`,
+        `${t('export_generated')}                 ${new Date().toLocaleString()}`,
         `${t('export_session_code')}          ${state.sessionCode || '–'}`,
         `${t('export_total_rounds')}          ${state.winners.length}`,
         `${t('export_total_drawn')}  ${state.drawnPool.size}`,
@@ -2195,7 +2195,8 @@
         t('export_log_title'),
         '-----------------------------------------',
         ...state.winners.map(r => {
-          let header = `${t('export_round')} #${r.round}  |  ${t('export_mode')}: ${modeLabels[r.mode]}  |  ${t('export_time')}: ${r.timestamp}`;
+          const formattedTime = isNaN(new Date(r.timestamp)) ? r.timestamp : new Date(r.timestamp).toLocaleTimeString();
+          let header = `${t('export_round')} #${r.round}  |  ${t('export_mode')}: ${modeLabels[r.mode]}  |  ${t('export_time')}: ${formattedTime}`;
           if (r.title) header += `  |  ${t('export_draw_name')}: ${r.title}`;
           return `${header}\n${t('export_winners')}: ${r.winners.join(', ')}\n-----------------------------------------`;
         }),

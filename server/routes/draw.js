@@ -48,7 +48,7 @@ router.post('/draw', requireOperator, async (req, res) => {
 
     const round = {
       round: roundNumber,
-      timestamp: new Date().toLocaleTimeString('pt-BR'),
+      timestamp: new Date().toISOString(),
       mode,
       winners,
     };
