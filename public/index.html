@@ -1,0 +1,1855 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sorteador by gclabs</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <meta name="description"
+    content="Sorteador para eventos ao vivo com modos de números, lista de nomes e sorteio interativo com QR Code em tempo real.">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Tailwind CSS v3 CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- QRCode.js -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.4.4/build/qrcode.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Nunito', 'sans-serif'],
+            outfit: ['Fredoka', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              400: 'rgb(var(--color-primary-400) / <alpha-value>)',
+              500: 'rgb(var(--color-primary-500) / <alpha-value>)',
+              600: 'rgb(var(--color-primary-600) / <alpha-value>)',
+              700: 'rgb(var(--color-primary-700) / <alpha-value>)',
+            },
+            secondary: {
+              400: 'rgb(var(--color-secondary-400) / <alpha-value>)',
+              500: 'rgb(var(--color-secondary-500) / <alpha-value>)',
+              600: 'rgb(var(--color-secondary-600) / <alpha-value>)',
+              700: 'rgb(var(--color-secondary-700) / <alpha-value>)',
+            }
+          },
+        },
+        animation: {
+          'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          'bounce-gentle': 'bounceGentle 2s ease-in-out infinite',
+          'scale-in': 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+        },
+        keyframes: {
+          bounceGentle: {
+            '0%, 100%': { transform: 'translateY(-3%)' },
+            '50%': { transform: 'none' },
+          },
+          scaleIn: {
+            '0%': { opacity: '0', transform: 'scale(0.85)' },
+            '100%': { opacity: '1', transform: 'scale(1)' },
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* ===================== DESIGN TOKENS ===================== */
+    :root {
+      --bg-base: #0f172a;
+      --bg-surface: #1e293b;
+      --bg-input: #0f172a;
+      --border: #334155;
+      --border-subtle: #1e293b;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --card-bg: #1e293b;
+      --history-bg: #0f172a;
+      --chip-bg: #1e293b;
+      --chip-border: rgb(var(--color-primary-600));
+      --winner-text: #ffffff;
+
+      --color-primary-400: 244 114 182;
+      --color-primary-500: 236 72 153;
+      --color-primary-600: 219 39 119;
+      --color-primary-700: 190 24 93;
+
+      --color-secondary-400: 34 211 238;
+      --color-secondary-500: 6 182 212;
+      --color-secondary-600: 8 145 178;
+      --color-secondary-700: 14 116 144;
+    }
+
+    [data-theme="light"] {
+      --bg-base: #f0f9ff;
+      --bg-surface: #ffffff;
+      --bg-input: #f8fafc;
+      --border: #cbd5e1;
+      --border-subtle: #e2e8f0;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #94a3b8;
+      --card-bg: #ffffff;
+      --history-bg: #f8fafc;
+      --chip-bg: #f1f5f9;
+      --chip-border: rgb(var(--color-primary-400));
+      --winner-text: #0f172a;
+
+      --color-primary-400: 251 146 60;
+      --color-primary-500: 249 115 22;
+      --color-primary-600: 234 88 12;
+      --color-primary-700: 194 65 12;
+
+      --color-secondary-400: 250 204 21;
+      --color-secondary-500: 234 179 8;
+      --color-secondary-600: 202 138 4;
+      --color-secondary-700: 161 98 7;
+    }
+
+    /* ===================== GLOBAL ===================== */
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Nunito', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background 0.3s ease, color 0.3s ease;
+    }
+
+    /* ===================== GLASS CARD ===================== */
+    .glass-card {
+      background: var(--card-bg);
+      border: 3px solid var(--border);
+      border-radius: 1.5rem;
+      box-shadow: 0 6px 0 var(--border);
+      transition: background 0.3s, border-color 0.3s, box-shadow 0.3s;
+    }
+
+    /* ===================== INPUTS ===================== */
+    .sp-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 3px solid var(--border);
+      border-radius: 1rem;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.1s;
+      outline: none;
+    }
+
+    .sp-input:focus {
+      border-color: rgb(var(--color-primary-500));
+      box-shadow: 0 4px 0 rgb(var(--color-primary-500));
+      transform: translateY(-2px);
+    }
+
+    .sp-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* ===================== HISTORY ITEMS ===================== */
+    .history-item {
+      padding: 0.75rem;
+      border-radius: 0.75rem;
+      background: var(--history-bg);
+      border: 1px solid var(--border);
+    }
+
+    .chip {
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+      color: rgb(var(--color-primary-400));
+      padding: 0.2rem 0.6rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      max-width: 130px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ===================== PARTICIPANT ROWS ===================== */
+    .participant-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 0.75rem;
+      border-radius: 0.75rem;
+      background: var(--history-bg);
+      border: 1px solid var(--border);
+      font-size: 0.75rem;
+    }
+
+    /* ===================== RESULT CARD ===================== */
+    .result-card {
+      background: var(--card-bg);
+      border: 2px solid rgb(var(--color-primary-500) / 0.5);
+      box-shadow: 0 0 24px rgb(var(--color-primary-500) / 0.3), 0 4px 0 rgb(var(--color-primary-700) / 0.4);
+      border-radius: 1rem;
+      padding: 1.5rem 1.25rem;
+      text-align: center;
+      position: relative;
+      animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    .result-card .winner-label {
+      font-family: 'Fredoka', sans-serif;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--winner-text);
+      word-break: break-word;
+      text-shadow: 0 2px 12px rgb(var(--color-primary-500) / 0.4);
+    }
+
+    /* ===================== SCROLLBAR ===================== */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgb(var(--color-primary-500) / 0.35);
+      border-radius: 99px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgb(var(--color-primary-500) / 0.6);
+    }
+
+    /* ===================== TABS ===================== */
+    .tab-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0.5rem;
+      border-radius: 0.5rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      color: var(--text-muted);
+      border: 1px solid transparent;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-secondary);
+    }
+
+    .tab-btn.active {
+      background: var(--bg-input);
+      color: rgb(var(--color-primary-400));
+      border-color: var(--border);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    /* ===================== HEADER ===================== */
+    #app-header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(14px);
+    }
+
+    /* ===================== THEME TOGGLE ===================== */
+    #theme-toggle {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #theme-toggle:hover {
+      border-color: rgb(var(--color-primary-500));
+    }
+
+    /* ===================== PARTICIPATE BTN ===================== */
+    #participate-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.75rem;
+      background: rgb(var(--color-primary-500) / 0.12);
+      border: 1px solid rgb(var(--color-primary-500) / 0.3);
+      color: rgb(var(--color-primary-400));
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #participate-btn:hover {
+      background: rgb(var(--color-primary-500));
+      color: white;
+      border-color: transparent;
+    }
+
+    /* ===================== DRAW BTN ===================== */
+    #draw-btn {
+      width: 100%;
+      background: rgb(var(--color-primary-500));
+      color: white;
+      font-family: 'Fredoka', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 700;
+      padding: 1rem;
+      border-radius: 1.25rem;
+      border: 3px solid rgb(var(--color-primary-700));
+      cursor: pointer;
+      transition: all 0.1s;
+      box-shadow: 0 6px 0 rgb(var(--color-primary-700));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    #draw-btn:hover {
+      background: rgb(var(--color-primary-400));
+      transform: translateY(-2px);
+      box-shadow: 0 8px 0 rgb(var(--color-primary-700));
+    }
+
+    #draw-btn:active {
+      transform: translateY(4px);
+      box-shadow: 0 2px 0 rgb(var(--color-primary-700));
+    }
+
+    #draw-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* ===================== ACTION BTNS ===================== */
+    .btn-danger {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.375rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      background: rgba(239, 68, 68, 0.06);
+      color: #f87171;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-danger:hover {
+      background: #ef4444;
+      color: white;
+      border-color: transparent;
+    }
+
+    .btn-ghost {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.375rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 0.75rem;
+      border: 1px solid var(--border);
+      background: var(--bg-input);
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-ghost:hover {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    /* ===================== TEXTAREA ===================== */
+    textarea.sp-input {
+      width: 100%;
+      background: var(--bg-input);
+      border: 3px solid var(--border);
+      border-radius: 1rem;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      transition: border-color 0.2s, box-shadow 0.2s, transform 0.1s;
+      outline: none;
+    }
+
+    /* ===================== NEON GLOW ===================== */
+    .neon-glow {
+      box-shadow: 0 0 30px rgb(var(--color-primary-500) / 0.3);
+    }
+
+    /* ===================== PARTICIPANT WIN/LOSE SCREENS ===================== */
+    #participant-view .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+    }
+
+    /* ===================== LOADING OVERLAY ===================== */
+    #api-loading {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      backdrop-filter: blur(4px);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ==================== HEADER ==================== -->
+  <header id="app-header" class="sticky top-0 z-40 px-5 py-3.5">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <!-- Branding -->
+      <a href="/" onclick="resetAppToHome(event)"
+        class="flex items-center gap-3 sm:gap-4 hover:opacity-90 transition-opacity">
+        <img src="logo.png" alt="Sorteador Logo"
+          class="h-12 w-12 sm:h-14 sm:w-14 rounded-2xl shadow-lg shadow-primary-500/20">
+        <div class="flex flex-col justify-center">
+          <h1 class="text-2xl sm:text-3xl font-outfit font-extrabold tracking-tight text-primary-500 leading-none">
+            Sorteador
+          </h1>
+          <p class="text-xs mt-0.5 font-bold" style="color: var(--text-secondary);">by gclabs</p>
+        </div>
+      </a>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-3">
+        <!-- Participate button (visible only in operator mode) -->
+        <button id="participate-btn" title="Abrir tela de participante em nova aba">
+          <i data-lucide="users" class="h-4 w-4"></i>
+          <span>Participar de Sorteio</span>
+        </button>
+
+        <!-- Theme Toggle -->
+        <button id="theme-toggle" title="Alternar Tema">
+          <i data-lucide="sun" id="icon-sun" class="h-5 w-5 text-amber-400 hidden"></i>
+          <i data-lucide="moon" id="icon-moon" class="h-5 w-5 text-primary-400"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== PARTICIPANT VIEW ==================== -->
+  <main id="participant-view" class="hidden flex-1 flex-col items-center justify-center p-4 w-full max-w-md mx-auto">
+    <div class="card glass-card rounded-3xl overflow-hidden shadow-2xl p-6 relative w-full">
+      <!-- Live badge -->
+      <div
+        class="absolute top-4 right-4 flex items-center gap-1.5 bg-primary-500/10 text-primary-400 border border-primary-500/20 px-2.5 py-1 rounded-full text-[10px] font-bold">
+        <span class="h-1.5 w-1.5 rounded-full bg-primary-500 animate-pulse inline-block"></span>
+        Ao Vivo
+      </div>
+
+      <div class="text-center mt-4 mb-6">
+        <div
+          class="h-12 w-12 rounded-2xl bg-gradient-to-tr from-primary-700 to-secondary-500 flex items-center justify-center mx-auto shadow-md mb-3">
+          <i data-lucide="users" class="h-6 w-6 text-white"></i>
+        </div>
+        <h2 class="text-2xl font-outfit font-bold tracking-tight">Área do Participante</h2>
+        <p class="text-sm mt-1" style="color: var(--text-secondary);">Faça parte do sorteio interativo</p>
+      </div>
+
+      <!-- Join Form -->
+      <div id="participant-join-form" class="space-y-4">
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-wider mb-1.5"
+            style="color: var(--text-secondary);">Código do Evento</label>
+          <input type="text" id="part-code-input" maxlength="6" placeholder="Ex: X9J2Y8"
+            class="sp-input text-center text-xl tracking-widest font-outfit font-extrabold uppercase"
+            onkeydown="if(event.key === 'Enter') document.getElementById('part-join-submit').click()">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-wider mb-1.5"
+            style="color: var(--text-secondary);">Seu Nome Completo</label>
+          <input type="text" id="part-name-input" placeholder="Digite seu nome..." class="sp-input"
+            onkeydown="if(event.key === 'Enter') document.getElementById('part-join-submit').click()">
+        </div>
+        <button id="part-join-submit"
+          class="w-full mt-1 bg-gradient-to-r from-primary-700 to-secondary-600 hover:from-primary-600 hover:to-secondary-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-primary-600/20 active:scale-95 transition-all text-sm flex items-center justify-center gap-2">
+          <i data-lucide="check-circle" class="h-4 w-4"></i>
+          Confirmar Entrada
+        </button>
+        <p id="part-join-error" class="text-center text-xs text-red-400 hidden"></p>
+      </div>
+
+      <!-- Waiting State -->
+      <div id="participant-waiting" class="hidden text-center py-8 space-y-5">
+        <div class="relative w-20 h-20 mx-auto">
+          <div class="absolute inset-0 rounded-full border-4 border-primary-500/20 animate-pulse"></div>
+          <div
+            class="absolute inset-2 rounded-full border-4 border-t-primary-500 border-r-transparent border-b-transparent border-l-transparent animate-spin">
+          </div>
+          <div class="absolute inset-4 rounded-full flex items-center justify-center"
+            style="background: var(--bg-base);">
+            <i data-lucide="ticket" class="h-7 w-7 text-primary-500"></i>
+          </div>
+        </div>
+        <div>
+          <h3 class="text-lg font-bold">Você está na fila!</h3>
+          <p id="part-registered-name" class="text-primary-400 font-bold mt-1 text-lg"></p>
+          <p class="text-xs mt-3 max-w-[220px] mx-auto" style="color: var(--text-secondary);">Aguarde o operador
+            realizar o sorteio. Boa sorte! 🍀</p>
+        </div>
+        <div class="border-t pt-4" style="border-color: var(--border);">
+          <span class="text-[11px]" style="color: var(--text-muted);">Código ativo: <strong id="part-registered-code"
+              style="color: var(--text-secondary);"></strong></span>
+        </div>
+        <button id="part-leave-btn"
+          class="w-full mt-2 py-2.5 rounded-xl text-xs font-semibold transition-all text-red-500 hover:bg-red-500/10"
+          style="border: 1px solid rgba(239, 68, 68, 0.3);">
+          Sair do Sorteio
+        </button>
+      </div>
+
+      <!-- Draw Results -->
+      <div id="participant-draw-screen" class="hidden text-center py-6 space-y-5">
+        <!-- Win State -->
+        <div id="part-state-win" class="hidden space-y-5 animate-scale-in">
+          <div
+            class="w-24 h-24 bg-gradient-to-tr from-yellow-500 to-amber-400 rounded-full flex items-center justify-center text-white mx-auto shadow-xl shadow-amber-500/30 relative"
+            style="animation: bounceGentle 2s ease-in-out infinite;">
+            <i data-lucide="award" class="h-12 w-12"></i>
+            <span class="absolute -top-1 -right-1 flex h-4 w-4">
+              <span
+                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-4 w-4 bg-yellow-500"></span>
+            </span>
+          </div>
+          <div>
+            <h3
+              class="text-3xl font-outfit font-extrabold bg-gradient-to-r from-yellow-400 to-amber-500 bg-clip-text text-transparent">
+              VOCÊ FOI SORTEADO!</h3>
+            <p class="text-sm mt-1.5" style="color: var(--text-secondary);">Parabéns! Apresente esta tela ao operador.
+            </p>
+          </div>
+        </div>
+
+        <!-- Lose State -->
+        <div id="part-state-lose" class="hidden space-y-5 animate-scale-in">
+          <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto"
+            style="background: var(--bg-input); border: 2px solid var(--border);">
+            <i data-lucide="frown" class="h-10 w-10" style="color: var(--text-secondary);"></i>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold" style="color: var(--text-secondary);">Não foi dessa vez!</h3>
+            <p class="text-sm mt-1" style="color: var(--text-muted);">Outro participante foi sorteado.</p>
+          </div>
+        </div>
+
+        <!-- Winners list -->
+        <div class="rounded-2xl p-4" style="background: var(--history-bg); border: 1px solid var(--border);">
+          <span class="text-[10px] uppercase font-bold tracking-wider" style="color: var(--text-muted);">Vencedores
+            Sorteados</span>
+          <div id="part-winners-list" class="mt-2 space-y-1 font-semibold text-sm"></div>
+        </div>
+
+        <button id="part-back-to-waiting" class="w-full py-2.5 rounded-xl text-xs font-semibold transition-all"
+          style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text-secondary);">
+          Voltar para a Fila de Espera
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== OPERATOR DASHBOARD ==================== -->
+  <main id="operator-view"
+    class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+
+    <!-- LEFT: SETTINGS & HISTORY -->
+    <section id="left-section" class="lg:col-span-4 flex flex-col gap-5">
+
+      <!-- MODE CARD -->
+      <div class="glass-card rounded-2xl p-5 flex flex-col gap-4">
+        <h2 class="text-[11px] font-bold uppercase tracking-wider flex items-center gap-2"
+          style="color: var(--text-secondary);">
+          <i data-lucide="sliders" class="h-3.5 w-3.5"></i>
+          Configurar Modo de Sorteio
+        </h2>
+
+        <!-- Tabs -->
+        <div class="grid grid-cols-3 gap-1 p-1 rounded-xl"
+          style="background: var(--bg-input); border: 1px solid var(--border);">
+          <button id="tab-numbers" class="tab-btn active" onclick="changeMode('numbers')">
+            <i data-lucide="hash" class="h-3.5 w-3.5 mb-1"></i>Números
+          </button>
+          <button id="tab-names" class="tab-btn" onclick="changeMode('names')">
+            <i data-lucide="type" class="h-3.5 w-3.5 mb-1"></i>Lista
+          </button>
+          <button id="tab-interactive" class="tab-btn" onclick="changeMode('interactive')">
+            <i data-lucide="zap" class="h-3.5 w-3.5 mb-1"></i>Interativo
+          </button>
+        </div>
+
+        <!-- Mode panels -->
+        <div class="min-h-[200px]">
+
+          <!-- NUMBERS MODE -->
+          <div id="panel-numbers" class="mode-panel space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold uppercase mb-1"
+                  style="color: var(--text-secondary);">Mínimo</label>
+                <input type="number" id="num-min" value="1" min="0" class="sp-input text-center">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold uppercase mb-1"
+                  style="color: var(--text-secondary);">Máximo</label>
+                <input type="number" id="num-max" value="100" min="1" class="sp-input text-center">
+              </div>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold uppercase mb-1" style="color: var(--text-secondary);">Qtd. por
+                Rodada</label>
+              <input type="number" id="num-qty" value="1" min="1" class="sp-input">
+            </div>
+            <p class="text-[11px] italic" style="color: var(--text-muted);">Números são sorteados sem repetições dentro
+              do intervalo configurado.</p>
+          </div>
+
+          <!-- NAMES MODE -->
+          <div id="panel-names" class="mode-panel space-y-3 hidden">
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-[11px] font-bold uppercase" style="color: var(--text-secondary);">Lista de
+                  Nomes</label>
+                <span id="names-counter"
+                  class="text-[10px] font-bold text-primary-400 bg-primary-500/10 px-2 py-0.5 rounded-full">0
+                  nomes</span>
+              </div>
+              <textarea id="names-list" rows="6" placeholder="Insira um nome por linha..." class="sp-input"
+                oninput="updateNamesCount()"></textarea>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold uppercase mb-1" style="color: var(--text-secondary);">Qtd. por
+                Rodada</label>
+              <input type="number" id="names-qty" value="1" min="1" class="sp-input">
+            </div>
+          </div>
+
+          <!-- INTERACTIVE MODE -->
+          <div id="panel-interactive" class="mode-panel space-y-3 hidden">
+            <div id="interactive-unstarted"
+              class="rounded-xl p-6 flex flex-col items-center justify-center gap-3 text-center"
+              style="background: var(--bg-input); border: 1px solid var(--border);">
+              <i data-lucide="zap" class="h-8 w-8 text-primary-500 mb-1"></i>
+              <p class="text-xs" style="color: var(--text-secondary);">Inicie a sessão para permitir que outras pessoas
+                entrem pelos seus dispositivos.</p>
+              <button id="start-interactive-btn"
+                class="mt-2 bg-primary-500 text-white font-bold py-2 px-6 rounded-xl hover:bg-primary-600 transition-colors shadow-md">Iniciar</button>
+            </div>
+
+            <div id="interactive-started" class="hidden rounded-xl p-4 flex flex-col items-center gap-3 relative"
+              style="background: var(--bg-input); border: 1px solid var(--border);">
+              <button id="end-session-btn"
+                class="absolute top-2 right-2 p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-colors"
+                title="Encerrar Sessão">
+                <i data-lucide="x" class="h-4 w-4"></i>
+              </button>
+              <div class="text-center">
+                <span class="text-[10px] font-bold uppercase tracking-wider" style="color: var(--text-muted);">Código da
+                  Sessão</span>
+                <div class="flex items-center justify-center gap-2 mt-1">
+                  <span id="interactive-code-display"
+                    class="text-2xl font-outfit font-extrabold tracking-widest text-primary-400">------</span>
+                  <button id="regen-code-btn" class="p-1 rounded-md transition-colors" style="color: var(--text-muted);"
+                    title="Gerar Novo Código" onmouseover="this.style.color='var(--text-primary)'"
+                    onmouseout="this.style.color='var(--text-muted)'">
+                    <i data-lucide="refresh-cw" class="h-3.5 w-3.5"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="bg-white p-2 rounded-xl shadow border border-slate-200/20">
+                <canvas id="qrcode-canvas" width="130" height="130" class="block"></canvas>
+              </div>
+              <span class="text-[10px] text-center font-medium" style="color: var(--text-muted);">Escaneie ou abra o
+                link para participar</span>
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold uppercase mb-1" style="color: var(--text-secondary);">Qtd. por
+                Rodada</label>
+              <input type="number" id="interactive-qty" value="1" min="1" class="sp-input mb-3">
+              <label class="block text-[11px] font-bold uppercase mb-1 mt-3" style="color: var(--text-secondary);">Nome
+                do Sorteio (Opcional)</label>
+              <input type="text" id="interactive-title" placeholder="Ex: Prêmio 1" class="sp-input mb-3">
+              <div class="flex items-center gap-2 mt-3 mb-1">
+                <input type="checkbox" id="interactive-repeat"
+                  class="w-4 h-4 rounded border-slate-300 text-primary-500 focus:ring-primary-500"
+                  style="background-color: var(--bg-input);">
+                <label for="interactive-repeat" class="text-[12px] font-medium"
+                  style="color: var(--text-secondary);">Permitir sortear repetido</label>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="glass-card rounded-2xl p-5 flex flex-col min-h-[380px]">
+        <div class="flex items-center justify-between mb-4 pb-3" style="border-bottom: 1px solid var(--border);">
+          <h2 class="text-[11px] font-bold uppercase tracking-wider flex items-center gap-2"
+            style="color: var(--text-secondary);">
+            <i data-lucide="history" class="h-3.5 w-3.5"></i>
+            Histórico / Rodadas
+          </h2>
+          <span id="winners-counter"
+            class="text-[10px] font-bold text-primary-400 bg-primary-500/10 px-2 py-0.5 rounded-full">0 sorteados</span>
+        </div>
+
+        <div id="history-rounds-list" class="flex-1 overflow-y-auto max-h-[340px] lg:max-h-[380px] space-y-2.5 pr-0.5">
+          <div id="history-empty-state" class="flex flex-col items-center justify-center text-center py-12 gap-2"
+            style="color: var(--text-muted);">
+            <i data-lucide="database" class="h-8 w-8 stroke-1"></i>
+            <p class="text-xs">Nenhum histórico disponível.</p>
+            <p class="text-[10px]">As rodadas aparecerão aqui.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 mt-4 pt-4" style="border-top: 1px solid var(--border);">
+          <button id="reset-btn" class="btn-danger" onclick="resetRaffle()">
+            <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+            Reiniciar
+          </button>
+          <button id="export-btn" class="btn-ghost" onclick="exportSession()">
+            <i data-lucide="download" class="h-3.5 w-3.5"></i>
+            Exportar
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CENTER: STAGE -->
+    <section id="stage-section" class="lg:col-span-8 flex flex-col gap-5">
+      <div
+        class="glass-card rounded-3xl p-6 lg:p-8 flex flex-col justify-between relative overflow-hidden min-h-[480px]">
+        <!-- BG orbs -->
+        <div class="absolute -top-20 -left-20 w-56 h-56 rounded-full pointer-events-none"
+          style="background: radial-gradient(circle, rgb(var(--color-primary-500) / 0.08) 0%, transparent 70%);"></div>
+        <div class="absolute -bottom-20 -right-20 w-56 h-56 rounded-full pointer-events-none"
+          style="background: radial-gradient(circle, rgba(79,70,229,0.08) 0%, transparent 70%);"></div>
+
+        <!-- Status bar -->
+        <div class="flex justify-between items-center z-10 pb-3" style="border-bottom: 1px solid var(--border);">
+          <span class="text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5"
+            style="color: var(--text-muted);">
+            <span class="h-1.5 w-1.5 rounded-full bg-secondary-500 animate-pulse inline-block"></span>
+            Painel de Projeção
+          </span>
+          <div class="text-[10px] font-bold uppercase px-3 py-1 rounded-md"
+            style="background: var(--bg-input); border: 1px solid var(--border); color: var(--text-secondary);">
+            Modo: <span id="current-mode-label" class="text-primary-400">Números</span>
+          </div>
+        </div>
+
+        <!-- Display area -->
+        <div class="flex-1 flex flex-col items-center justify-center py-6 z-10">
+
+          <!-- Shuffle roller -->
+          <div id="shuffle-container" class="hidden text-center space-y-3">
+            <div class="text-xs font-bold uppercase tracking-widest animate-pulse" style="color: var(--text-muted);">
+              Sorteando candidatos...</div>
+            <div id="shuffle-display"
+              class="text-6xl lg:text-7xl font-outfit font-extrabold text-secondary-400 drop-shadow-[0_0_20px_rgba(6,182,212,0.6)] truncate max-w-xs"
+              style="text-shadow: 0 0 40px rgb(var(--color-secondary-500) / 0.5);">
+              ---
+            </div>
+          </div>
+
+          <!-- Results -->
+          <div id="result-container" class="w-full">
+            <!-- Empty -->
+            <div id="result-empty" class="text-center space-y-4 py-10">
+              <div class="h-20 w-20 rounded-full flex items-center justify-center mx-auto"
+                style="background: rgba(79,70,229,0.06); border: 1px solid rgba(79,70,229,0.12);">
+                <i data-lucide="sparkles" class="h-10 w-10 text-secondary-400 animate-bounce-gentle"></i>
+              </div>
+              <div>
+                <h3 class="text-lg font-outfit font-bold">Pronto para o Sorteio</h3>
+                <p class="text-xs mt-1 max-w-[240px] mx-auto" style="color: var(--text-secondary);">Configure as opções
+                  no painel lateral e clique no botão abaixo.</p>
+              </div>
+            </div>
+
+            <!-- Cards grid -->
+            <div id="result-cards"
+              class="hidden grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto p-0.5"></div>
+          </div>
+
+        </div>
+
+        <!-- Action button -->
+        <div class="z-10 pt-4 flex gap-3" style="border-top: 1px solid var(--border);">
+          <button id="draw-btn" class="flex-1" onclick="performDraw()">
+            <i data-lucide="play" class="h-5 w-5 fill-current"></i>
+            Realizar Sorteio
+          </button>
+          <button id="theater-btn"
+            class="hidden btn-ghost aspect-square p-0 flex items-center justify-center rounded-xl" title="Modo Teatro"
+            onclick="openTheaterMode()" style="width: 56px; border: 1px solid var(--border);">
+            <i data-lucide="monitor-play" class="h-5 w-5"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT: ACTIVE PARTICIPANTS -->
+    <section id="right-section" class="lg:col-span-3 flex flex-col gap-5 hidden">
+      <!-- ACTIVE PARTICIPANTS CARD -->
+      <div id="card-active-participants" class="glass-card rounded-2xl p-5 flex flex-col min-h-[200px]">
+        <div class="flex items-center justify-between mb-3 pb-2.5" style="border-bottom: 1px solid var(--border);">
+          <h2 class="text-[11px] font-bold uppercase tracking-wider flex items-center gap-2"
+            style="color: var(--text-secondary);">
+            <i data-lucide="users" class="h-3.5 w-3.5 text-primary-400"></i>
+            Participantes Ativos
+          </h2>
+          <span id="participants-counter"
+            class="text-[10px] font-bold text-primary-400 bg-primary-500/10 px-2 py-0.5 rounded-full">0 online</span>
+        </div>
+
+        <div id="active-participants-list" class="flex-1 overflow-y-auto max-h-[260px] space-y-1.5 pr-0.5">
+          <div id="participants-empty-state" class="flex flex-col items-center justify-center text-center py-8 gap-2"
+            style="color: var(--text-muted);">
+            <i data-lucide="user-plus" class="h-8 w-8 stroke-1"></i>
+            <p class="text-xs">Nenhum participante conectado.</p>
+            <p class="text-[10px] max-w-[200px]">Use o Modo Interativo e compartilhe o código ou QR Code.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2 mt-4 pt-4" style="border-top: 1px solid var(--border);">
+          <button id="kick-all-btn" class="btn-danger" onclick="kickAllParticipants()">
+            <i data-lucide="users-x" class="h-3.5 w-3.5"></i>
+            Limpar Participantes
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== THEATER VIEW ==================== -->
+  <main id="theater-view" class="hidden flex-1 w-full flex-col relative z-10" style="background: var(--bg-body);">
+
+    <!-- Floating Names Background -->
+    <div id="theater-names-bg" class="absolute inset-0 overflow-hidden pointer-events-none z-0" style="opacity: 0.15; ">
+    </div>
+
+    <!-- Notifications Container -->
+    <div id="theater-notifications" class="absolute top-5 right-5 z-30 flex flex-col gap-2 w-72 pointer-events-none">
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="flex-1 flex flex-col items-center justify-center relative z-10 p-5">
+      <div id="theater-content-idle" class="flex flex-col items-center gap-6">
+        <h2 class="text-3xl font-bold uppercase tracking-widest text-primary-400"
+          style="text-shadow: 0 0 20px rgba(99,102,241,0.5);">Aguardando Participantes</h2>
+        <div
+          class="bg-white p-6 rounded-3xl shadow-2xl border border-slate-200/20 transform transition-transform hover:scale-105">
+          <canvas id="theater-qrcode" width="300" height="300" class="block"></canvas>
+        </div>
+        <div class="text-center">
+          <p class="text-lg font-medium" style="color: var(--text-secondary);">Código da Sessão</p>
+          <p id="theater-code-display"
+            class="text-6xl font-outfit font-extrabold tracking-[0.2em] text-primary-500 mt-2">------</p>
+        </div>
+      </div>
+
+      <div id="theater-content-results" class="hidden flex-col items-center gap-8 w-full max-w-5xl">
+        <h2
+          class="text-4xl sm:text-5xl font-outfit font-extrabold text-secondary-400 text-center drop-shadow-[0_0_20px_rgba(6,182,212,0.6)]">
+          Vencedores!</h2>
+        <div id="theater-results-grid"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-h-[60vh] overflow-y-auto p-4">
+        </div>
+      </div>
+
+      <div id="theater-shuffle-container" class="hidden flex-col items-center gap-4">
+        <div class="text-xl font-bold uppercase tracking-widest animate-pulse" style="color: var(--text-muted);">
+          Sorteando...</div>
+        <div id="theater-shuffle-display"
+          class="text-7xl md:text-9xl font-outfit font-extrabold text-secondary-400 drop-shadow-[0_0_40px_rgba(6,182,212,0.8)] truncate max-w-screen-md">
+          ---</div>
+      </div>
+    </div>
+
+    <!-- Bottom Controls -->
+    <div class="w-full p-5 z-20" style="background: var(--bg-card); border-top: 1px solid var(--border);">
+      <div class="max-w-7xl mx-auto flex items-center justify-between">
+        <button class="btn-ghost flex items-center gap-2" onclick="closeTheaterMode()">
+          <i data-lucide="arrow-left" class="h-5 w-5"></i>
+          Sair do Modo Teatro
+        </button>
+        <div class="flex items-stretch gap-4 h-[52px]">
+          <input type="number" id="theater-qty" value="1" min="1"
+            class="sp-input text-center w-20 text-lg !py-0 h-full rounded-xl" title="Quantidade de sorteados">
+          <button id="theater-draw-btn"
+            class="bg-primary-500 text-white font-bold px-8 rounded-xl hover:bg-primary-600 transition-colors shadow-lg flex items-center gap-2 h-full"
+            onclick="performDraw()">
+            <i data-lucide="play" class="h-6 w-6"></i>
+            <span id="theater-draw-text">Realizar Sorteio</span>
+          </button>
+        </div>
+        <div class="w-48"></div> <!-- Spacer for flex balance -->
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== FOOTER ==================== -->
+  <footer class="mt-auto py-4 px-5 text-center text-xs z-10"
+    style="border-top: 1px solid var(--border); color: var(--text-muted);">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <p>&copy; 2026 Sorteador by gclabs.</p>
+    </div>
+  </footer>
+
+  <!-- ==================== MAIN SCRIPT ==================== -->
+  <script>
+    // ===================================================================
+    // STATE
+    // ===================================================================
+    const state = {
+      theme: 'dark',
+      mode: 'numbers',
+      sessionCode: '',
+      operatorKey: '',
+      participants: [],    // { id, name, timestamp }
+      winners: [],         // [ { round, timestamp, mode, winners[] } ]
+      drawnPool: new Set(),
+      isDrawing: false,
+      isParticipantMode: false,
+      sseSource: null,
+      isTheaterMode: false,
+      theaterNotifyMax: 7,
+      theaterNotifyTimeout: 15
+    };
+
+    // ===================================================================
+    // INIT
+    // ===================================================================
+    function resetAppToHome(e) {
+      e.preventDefault();
+      if (state.isDrawing) return;
+      window.location.href = '/';
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      try {
+        const conf = await apiGet('/api/config');
+        if (conf.theaterNotifyMax) state.theaterNotifyMax = conf.theaterNotifyMax;
+        if (conf.theaterNotifyTimeout) state.theaterNotifyTimeout = conf.theaterNotifyTimeout;
+      } catch (e) { console.error('Error loading config:', e); }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const joinCode = urlParams.get('join');
+
+      if (joinCode !== null) {
+        // PARTICIPANT MODE
+        state.isParticipantMode = true;
+        document.getElementById('operator-view').remove();
+        document.getElementById('participate-btn').remove();
+
+        document.getElementById('participant-view').classList.remove('hidden');
+        document.getElementById('participant-view').classList.add('flex');
+
+        if (joinCode) document.getElementById('part-code-input').value = joinCode.toUpperCase();
+
+        initParticipantView();
+      } else {
+        // OPERATOR MODE
+        await initOperatorView();
+      }
+
+      lucide.createIcons();
+      initTheme();
+    });
+
+
+    // ===================================================================
+    // THEATER MODE
+    // ===================================================================
+    function openTheaterMode() {
+      state.isTheaterMode = true;
+      document.getElementById('operator-view').classList.add('hidden');
+      document.getElementById('theater-view').classList.remove('hidden');
+      document.getElementById('theater-view').classList.add('flex');
+      document.getElementById('theater-code-display').innerText = state.sessionCode;
+
+      // Sync quantity from interactive panel
+      document.getElementById('theater-qty').value = document.getElementById('interactive-qty').value;
+
+      const canvas = document.getElementById('theater-qrcode');
+      if (canvas && typeof QRCode !== 'undefined') {
+        const url = `${window.location.origin}${window.location.pathname}?join=${state.sessionCode}`;
+        QRCode.toCanvas(canvas, url, { width: 300, margin: 1, color: { dark: '#6366f1', light: '#ffffff' } });
+      }
+
+      const bg = document.getElementById('theater-names-bg');
+      bg.innerHTML = '';
+      const allowRepeat = document.getElementById('interactive-repeat').checked;
+      state.participants.forEach(p => {
+        if (allowRepeat || !state.drawnPool.has(p.name)) spawnFloatingName(p.name);
+      });
+
+      // Reset views
+      document.getElementById('theater-content-idle').classList.remove('hidden');
+      document.getElementById('theater-content-idle').classList.add('flex');
+      document.getElementById('theater-content-results').classList.add('hidden');
+      document.getElementById('theater-content-results').classList.remove('flex');
+      document.getElementById('theater-shuffle-container').classList.add('hidden');
+      document.getElementById('theater-shuffle-container').classList.remove('flex');
+      document.getElementById('theater-draw-text').innerText = 'Realizar Sorteio';
+    }
+
+    function closeTheaterMode() {
+      // Sync quantity back to interactive panel
+      document.getElementById('interactive-qty').value = document.getElementById('theater-qty').value;
+
+      state.isTheaterMode = false;
+      document.getElementById('theater-view').classList.add('hidden');
+      document.getElementById('theater-view').classList.remove('flex');
+      document.getElementById('operator-view').classList.remove('hidden');
+    }
+
+    function showTheaterNotification(name) {
+      if (!state.isTheaterMode) return;
+      const container = document.getElementById('theater-notifications');
+
+      const el = document.createElement('div');
+      el.className = 'bg-primary-500/90 text-white px-4 py-3 rounded-xl shadow-xl text-sm font-medium transform transition-all duration-300 opacity-0 translate-x-4 flex items-center gap-2 border border-primary-400/50';
+      el.innerHTML = `<i data-lucide="user-check" class="h-4 w-4"></i><span><b>${name}</b> entrou no sorteio</span>`;
+
+      container.appendChild(el);
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+
+      setTimeout(() => el.classList.remove('opacity-0', 'translate-x-4'), 10);
+
+      while (container.children.length > state.theaterNotifyMax) {
+        container.removeChild(container.firstChild);
+      }
+
+      setTimeout(() => {
+        if (el.parentNode === container) {
+          el.classList.add('opacity-0', 'translate-x-4');
+          setTimeout(() => {
+            if (el.parentNode === container) container.removeChild(el);
+          }, 300);
+        }
+      }, state.theaterNotifyTimeout * 1000);
+    }
+
+    function spawnFloatingName(name) {
+      const bg = document.getElementById('theater-names-bg');
+      if (!bg) return;
+      const el = document.createElement('span');
+      el.innerText = name;
+      el.className = 'absolute font-bold text-2xl md:text-4xl text-primary-300 whitespace-nowrap opacity-0 transition-opacity duration-1000 select-none';
+
+      const startX = Math.random() * 100;
+      const startY = 20 + Math.random() * 80;
+      el.style.left = `${startX}%`;
+      el.style.top = `${startY}%`;
+
+      el.animate([
+        { transform: 'translate(0, 0) scale(0.8)', opacity: 0 },
+        { opacity: 0.85, offset: 0.2 },
+        { opacity: 0.85, offset: 0.8 },
+        { transform: `translate(${(Math.random() - 0.5) * 400}px, ${(Math.random() - 0.5) * 400 - 100}px) scale(1.3)`, opacity: 0 }
+      ], {
+        duration: 15000 + Math.random() * 8000,
+        easing: 'ease-in-out',
+        iterations: Infinity,
+        direction: 'alternate'
+      });
+
+      bg.appendChild(el);
+    }
+
+    function removeFloatingName(name) {
+      const bg = document.getElementById('theater-names-bg');
+      if (!bg) return;
+      Array.from(bg.children).forEach(el => {
+        if (el.innerText === name) {
+          el.remove();
+        }
+      });
+    }
+    // ===================================================================
+    // THEME
+    // ===================================================================
+    function initTheme() {
+      const saved = localStorage.getItem('sorteador_theme') || 'dark';
+      applyTheme(saved);
+      document.getElementById('theme-toggle').addEventListener('click', () => {
+        applyTheme(state.theme === 'dark' ? 'light' : 'dark');
+      });
+    }
+
+    function applyTheme(theme) {
+      state.theme = theme;
+      localStorage.setItem('sorteador_theme', theme);
+      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+
+      const iconSun = document.getElementById('icon-sun');
+      const iconMoon = document.getElementById('icon-moon');
+      if (theme === 'dark') {
+        if (iconSun) iconSun.classList.add('hidden');
+        if (iconMoon) iconMoon.classList.remove('hidden');
+      } else {
+        if (iconSun) iconSun.classList.remove('hidden');
+        if (iconMoon) iconMoon.classList.add('hidden');
+      }
+    }
+
+    // ===================================================================
+    // API HELPERS
+    // ===================================================================
+    async function apiPost(path, body = {}) {
+      const res = await fetch(path, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Operator-Key': state.operatorKey,
+        },
+        body: JSON.stringify(body),
+      });
+      return res.json();
+    }
+
+    async function apiGet(path) {
+      const res = await fetch(path);
+      return res.json();
+    }
+
+
+    async function ensureSessionCreated() {
+      if (state.sessionCode) return;
+      const result = await apiPost('/api/session');
+      state.operatorKey = result.operatorKey;
+      state.sessionCode = result.code;
+      localStorage.setItem('sorteador_operator_key', result.operatorKey);
+      localStorage.setItem('sorteador_session_code', result.code);
+      document.getElementById('interactive-code-display').innerText = result.code;
+      generateQRCode(result.code);
+      startOperatorSSE(result.code);
+
+      document.getElementById('interactive-unstarted').classList.add('hidden');
+      document.getElementById('interactive-started').classList.remove('hidden');
+    }
+    // ===================================================================
+    // OPERATOR
+    // ===================================================================
+    async function initOperatorView() {
+      // Restore operator identity
+      let operatorKey = localStorage.getItem('sorteador_operator_key');
+      let sessionCode = localStorage.getItem('sorteador_session_code');
+
+      // Validate existing session
+      if (operatorKey && sessionCode) {
+        const session = await apiGet(`/api/session/${sessionCode}`);
+        if (session.error) {
+          // Session expired or invalid
+          localStorage.removeItem('sorteador_operator_key');
+          localStorage.removeItem('sorteador_session_code');
+        } else {
+          // Restore state from server
+          state.operatorKey = operatorKey;
+          state.sessionCode = sessionCode;
+          state.participants = session.participants || [];
+          session.drawn.forEach(d => state.drawnPool.add(d));
+          state.winners = session.rounds || [];
+          updateHistoryUI();
+          updateParticipantsUI();
+
+          document.getElementById('interactive-code-display').innerText = sessionCode;
+          generateQRCode(sessionCode);
+          startOperatorSSE(sessionCode);
+
+          document.getElementById('interactive-unstarted').classList.add('hidden');
+          document.getElementById('interactive-started').classList.remove('hidden');
+        }
+      }
+
+      // Participate button opens in same tab, no code if not generated
+      document.getElementById('participate-btn').addEventListener('click', () => {
+        window.location.href = `${window.location.pathname}?join=${state.sessionCode || ''}`;
+      });
+
+      // Regen code
+      document.getElementById('regen-code-btn').addEventListener('click', regenSessionCode);
+
+      // End session button
+      const endBtn = document.getElementById('end-session-btn');
+      if (endBtn) {
+        endBtn.addEventListener('click', async () => {
+          if (!confirm('Deseja realmente encerrar a sessão? Todos os participantes serão desconectados.')) return;
+          const res = await fetch(`/api/session/${state.sessionCode}`, {
+            method: 'DELETE',
+            headers: { 'X-Operator-Key': state.operatorKey }
+          });
+          if (res.ok) {
+            localStorage.removeItem('sorteador_operator_key');
+            localStorage.removeItem('sorteador_session_code');
+            state.operatorKey = null;
+            state.sessionCode = '';
+            state.participants = [];
+            state.drawnPool.clear();
+            state.winners = [];
+            if (state.sseSource) state.sseSource.close();
+            document.getElementById('interactive-started').classList.add('hidden');
+            document.getElementById('interactive-unstarted').classList.remove('hidden');
+            updateParticipantsUI();
+            updateHistoryUI();
+          } else {
+            alert('Erro ao encerrar a sessão.');
+          }
+        });
+      }
+
+      // Start interactive session button
+      document.getElementById('start-interactive-btn').addEventListener('click', async () => {
+        await ensureSessionCreated();
+        document.getElementById('interactive-unstarted').classList.add('hidden');
+        document.getElementById('interactive-started').classList.remove('hidden');
+      });
+    }
+
+    function startOperatorSSE(code) {
+      if (state.sseSource) state.sseSource.close();
+      state.sseSource = new EventSource(`/api/session/${code}/events`);
+
+      state.sseSource.onmessage = (e) => {
+        const event = JSON.parse(e.data);
+        if (event.type === 'participant_joined') {
+          // Add or update participant in state
+          const idx = state.participants.findIndex(p => p.id === event.participant.id);
+          if (idx >= 0) state.participants[idx] = event.participant;
+          else {
+            state.participants.push(event.participant);
+            showTheaterNotification(event.participant.name);
+            if (!state.drawnPool.has(event.participant.name)) {
+              spawnFloatingName(event.participant.name);
+            }
+          }
+          updateParticipantsUI();
+        } else if (event.type === 'participant_left') {
+          state.participants = state.participants.filter(p => p.id !== event.participantId);
+          updateParticipantsUI();
+        }
+      };
+
+      state.sseSource.onerror = () => {
+        // Reconnect automatically (EventSource does this natively)
+      };
+    }
+
+    // ===================================================================
+    // SESSION CODE & QR
+    // ===================================================================
+    function generateQRCode(code) {
+      const canvas = document.getElementById('qrcode-canvas');
+      if (!canvas || typeof QRCode === 'undefined') return;
+      const url = `${window.location.origin}${window.location.pathname}?join=${code}`;
+      QRCode.toCanvas(canvas, url, { width: 130, margin: 1, color: { dark: '#6366f1', light: '#ffffff' } }, (err) => {
+        if (err) console.warn('QRCode error:', err);
+      });
+    }
+
+    async function regenSessionCode() {
+      if (!confirm('Gerar novo código? Os participantes atuais precisarão reconectar.')) return;
+
+      const result = await apiPost(`/api/session/${state.sessionCode}/regen`);
+      if (result.error) { alert('Erro ao gerar novo código: ' + result.error); return; }
+
+      const newCode = result.newCode;
+      state.sessionCode = newCode;
+      state.participants = [];
+      state.drawnPool.clear();
+      state.winners = [];
+      localStorage.setItem('sorteador_session_code', newCode);
+
+      document.getElementById('interactive-code-display').innerText = newCode;
+      generateQRCode(newCode);
+      updateParticipantsUI();
+      updateHistoryUI();
+
+      // Restart SSE on new code
+      startOperatorSSE(newCode);
+    }
+
+    // ===================================================================
+    // PARTICIPANTS UI
+    // ===================================================================
+    function updateParticipantsUI() {
+      const list = document.getElementById('active-participants-list');
+      const counter = document.getElementById('participants-counter');
+      if (!list) return;
+
+      counter.innerText = `${state.participants.length} online`;
+
+      if (state.participants.length === 0) {
+        list.innerHTML = `<div id="participants-empty-state" class="flex flex-col items-center justify-center text-center py-8 gap-2" style="color:var(--text-muted);">
+            <i data-lucide="user-plus" class="h-8 w-8 stroke-1"></i>
+            <p class="text-xs">Nenhum participante conectado.</p>
+            <p class="text-[10px] max-w-[200px]">Use o Modo Interativo e compartilhe o código ou QR Code.</p>
+          </div>`;
+        lucide.createIcons();
+        return;
+      }
+
+      let html = '';
+      state.participants.forEach(p => {
+        const won = state.drawnPool.has(p.name);
+        html += `<div class="participant-row">
+          <div class="flex items-center gap-2 overflow-hidden">
+            <span class="h-2 w-2 rounded-full flex-shrink-0 ${won ? 'bg-amber-400' : 'bg-emerald-500 animate-pulse'}"></span>
+            <span class="font-semibold truncate text-xs ${won ? 'line-through' : ''}" style="color: ${won ? 'var(--text-muted)' : 'var(--text-primary)'};">${p.name}</span>
+          </div>
+          ${won
+            ? '<span class="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded flex-shrink-0">Sorteado</span>'
+            : '<span class="text-[10px] flex-shrink-0" style="color:var(--text-muted)">Pronto</span>'}
+        </div>`;
+      });
+      list.innerHTML = html;
+    }
+
+    // ===================================================================
+    // MODE TABS
+    // ===================================================================
+    function changeMode(mode) {
+      if (state.isDrawing) return;
+      state.mode = mode;
+
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById(`tab-${mode}`).classList.add('active');
+
+      document.querySelectorAll('.mode-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`panel-${mode}`).classList.remove('hidden');
+
+      const labels = { numbers: 'Números', names: 'Lista', interactive: 'Interativo' };
+      document.getElementById('current-mode-label').innerText = labels[mode];
+
+      // Toggle right section visibility
+      const rightSection = document.getElementById('right-section');
+      const stageSection = document.getElementById('stage-section');
+      const theaterBtn = document.getElementById('theater-btn');
+
+      if (mode === 'interactive') {
+        rightSection.classList.remove('hidden');
+        stageSection.className = 'lg:col-span-5 flex flex-col gap-5';
+        if (theaterBtn) theaterBtn.classList.remove('hidden');
+      } else {
+        rightSection.classList.add('hidden');
+        stageSection.className = 'lg:col-span-8 flex flex-col gap-5';
+        if (theaterBtn) theaterBtn.classList.add('hidden');
+      }
+
+      updateParticipantsUI();
+    }
+
+    function updateNamesCount() {
+      const area = document.getElementById('names-list');
+      const counter = document.getElementById('names-counter');
+      if (!area || !counter) return;
+      const count = area.value.split('\n').map(n => n.trim()).filter(Boolean).length;
+      counter.innerText = `${count} nome${count !== 1 ? 's' : ''}`;
+    }
+
+    // ===================================================================
+    // DRAW
+    // ===================================================================
+    async function performDraw() {
+      if (state.isDrawing) return;
+
+      await ensureSessionCreated();
+
+      let qty = 1;
+      let pool = [];
+
+      if (state.isTheaterMode) {
+        qty = parseInt(document.getElementById('theater-qty').value);
+        if (isNaN(qty) || qty < 1) { alert('Insira uma quantidade válida.'); return; }
+        if (state.participants.length === 0) { alert('Nenhum participante conectado.'); return; }
+
+        const allowRepeat = document.getElementById('interactive-repeat').checked;
+        state.participants.forEach(p => {
+          if (allowRepeat || !state.drawnPool.has(p.name)) {
+            pool.push(p.name);
+          }
+        });
+      } else if (state.mode === 'numbers') {
+        const min = parseInt(document.getElementById('num-min').value);
+        const max = parseInt(document.getElementById('num-max').value);
+        qty = parseInt(document.getElementById('num-qty').value);
+
+        if (isNaN(min) || isNaN(max) || isNaN(qty) || min > max || qty < 1) {
+          alert('Configure valores mínimo, máximo e quantidade válidos.'); return;
+        }
+        for (let i = min; i <= max; i++) {
+          if (!state.drawnPool.has(String(i))) pool.push(String(i));
+        }
+      } else if (state.mode === 'names') {
+        qty = parseInt(document.getElementById('names-qty').value);
+        if (isNaN(qty) || qty < 1) { alert('Insira uma quantidade válida.'); return; }
+
+        const all = document.getElementById('names-list').value
+          .split('\n').map(n => n.trim()).filter(Boolean);
+        if (all.length === 0) { alert('Adicione nomes à lista.'); return; }
+        all.forEach(n => { if (!state.drawnPool.has(n)) pool.push(n); });
+      } else if (state.mode === 'interactive') {
+        qty = parseInt(document.getElementById('interactive-qty').value);
+        if (isNaN(qty) || qty < 1) { alert('Insira uma quantidade válida.'); return; }
+        if (state.participants.length === 0) { alert('Nenhum participante conectado.'); return; }
+
+        const allowRepeat = document.getElementById('interactive-repeat').checked;
+        state.participants.forEach(p => {
+          if (allowRepeat || !state.drawnPool.has(p.name)) {
+            pool.push(p.name);
+          }
+        });
+      }
+
+      if (pool.length === 0) { alert('Todos os candidatos já foram sorteados! Reinicie o sorteio.'); return; }
+      if (qty > pool.length) { alert(`Você tentou sortear ${qty}, mas há apenas ${pool.length} disponíveis.`); return; }
+
+      // ---- ANIMATE ----
+      state.isDrawing = true;
+      setDrawBtnState(false);
+
+      if (state.isTheaterMode) {
+        document.getElementById('theater-content-idle').classList.add('hidden');
+        document.getElementById('theater-content-idle').classList.remove('flex');
+        document.getElementById('theater-content-results').classList.add('hidden');
+        document.getElementById('theater-content-results').classList.remove('flex');
+        document.getElementById('theater-shuffle-container').classList.remove('hidden');
+        document.getElementById('theater-shuffle-container').classList.add('flex');
+      } else {
+        document.getElementById('result-empty').classList.add('hidden');
+        document.getElementById('result-cards').classList.add('hidden');
+        document.getElementById('shuffle-container').classList.remove('hidden');
+      }
+
+      const ticker = setInterval(() => {
+        const current = pool[Math.floor(Math.random() * pool.length)];
+        if (state.isTheaterMode) {
+          document.getElementById('theater-shuffle-display').innerText = current;
+        } else {
+          document.getElementById('shuffle-display').innerText = current;
+        }
+      }, 65);
+
+      // Call API after animation starts
+      let modeToPass = state.isTheaterMode ? 'interactive' : state.mode;
+
+      let drawTitle = '';
+      if (state.mode === 'interactive' || state.isTheaterMode) {
+        drawTitle = document.getElementById('interactive-title').value.trim();
+      }
+
+      const drawPromise = apiPost(`/api/session/${state.sessionCode}/draw`, {
+        mode: modeToPass,
+        pool,
+        qty,
+        title: drawTitle
+      });
+
+      setTimeout(async () => {
+        clearInterval(ticker);
+
+        const result = await drawPromise;
+        if (result.error) {
+          alert('Erro ao sortear: ' + result.error);
+          if (state.isTheaterMode) {
+            document.getElementById('theater-shuffle-container').classList.add('hidden');
+            document.getElementById('theater-shuffle-container').classList.remove('flex');
+            document.getElementById('theater-content-idle').classList.remove('hidden');
+            document.getElementById('theater-content-idle').classList.add('flex');
+          } else {
+            document.getElementById('shuffle-container').classList.add('hidden');
+            document.getElementById('result-empty').classList.remove('hidden');
+          }
+          state.isDrawing = false;
+          setDrawBtnState(true);
+          return;
+        }
+
+        const { round } = result;
+        const winners = round.winners;
+
+        // Update local state
+        winners.forEach(w => {
+          state.drawnPool.add(w);
+          removeFloatingName(w);
+        });
+        state.winners.unshift(round);
+
+        // Show cards
+        if (state.isTheaterMode) {
+          document.getElementById('theater-shuffle-container').classList.add('hidden');
+          document.getElementById('theater-shuffle-container').classList.remove('flex');
+          const rc = document.getElementById('theater-content-results');
+          rc.classList.remove('hidden');
+          rc.classList.add('flex');
+          document.getElementById('theater-draw-text').innerText = 'Sortear Novamente';
+
+          let html = '';
+          winners.forEach((item, idx) => {
+            html += `<div class="p-6 rounded-2xl shadow-xl flex items-center justify-center transform transition-all duration-500 animate-slide-up" style="background: var(--bg-card); border: 1px solid var(--border); border-left: 4px solid var(--secondary-400); animation-delay: ${idx * 150}ms">
+              <span class="text-3xl font-outfit font-bold" style="color: var(--text-primary);">${item}</span>
+            </div>`;
+          });
+          document.getElementById('theater-results-grid').innerHTML = html;
+        } else {
+          document.getElementById('shuffle-container').classList.add('hidden');
+          const resultCards = document.getElementById('result-cards');
+          resultCards.innerHTML = winners.map((w, i) => `
+            <div class="result-card">
+              <span class="absolute top-2 right-2 text-[9px] font-bold text-primary-400 bg-primary-500/10 px-1.5 py-0.5 rounded-full">#${i + 1}</span>
+              <span class="winner-label">${w}</span>
+            </div>`).join('');
+          resultCards.classList.remove('hidden');
+        }
+
+        if (typeof confetti !== 'undefined') {
+          confetti({ particleCount: 160, spread: 85, origin: { y: 0.6 } });
+        }
+
+        updateHistoryUI();
+        updateParticipantsUI();
+
+        state.isDrawing = false;
+        setDrawBtnState(true);
+      }, 2000);
+    }
+
+    function setDrawBtnState(enabled) {
+      const btn = document.getElementById('draw-btn');
+      btn.disabled = !enabled;
+      document.getElementById('reset-btn').disabled = !enabled;
+      document.getElementById('export-btn').disabled = !enabled;
+      const regen = document.getElementById('regen-code-btn');
+      if (regen) regen.disabled = !enabled;
+      document.querySelectorAll('.tab-btn').forEach(b => b.disabled = !enabled);
+    }
+
+    // ===================================================================
+    // HISTORY UI
+    // ===================================================================
+    function updateHistoryUI() {
+      const container = document.getElementById('history-rounds-list');
+      const counter = document.getElementById('winners-counter');
+      if (!container) return;
+
+      counter.innerText = `${state.drawnPool.size} sorteado${state.drawnPool.size !== 1 ? 's' : ''}`;
+
+      if (state.winners.length === 0) {
+        container.innerHTML = `<div id="history-empty-state" class="flex flex-col items-center justify-center text-center py-12 gap-2" style="color:var(--text-muted);">
+          <i data-lucide="database" class="h-8 w-8 stroke-1"></i>
+          <p class="text-xs">Nenhum histórico disponível.</p>
+          <p class="text-[10px]">As rodadas aparecerão aqui.</p>
+        </div>`;
+        lucide.createIcons();
+        return;
+      }
+
+      const modeLabel = { numbers: 'Números', names: 'Lista', interactive: 'Interat.' };
+      container.innerHTML = state.winners.map(r => `
+        <div class="history-item space-y-2">
+          <div class="flex justify-between items-center" style="font-size:10px; color:var(--text-muted); font-weight:700;">
+            <div class="flex items-center gap-1.5 flex-1 overflow-hidden">
+              <span class="text-secondary-400 bg-secondary-500/10 px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0">Rodada ${r.round} (${modeLabel[r.mode]})</span>
+              ${r.title ? `<span class="text-primary-400 bg-primary-500/10 px-2 py-0.5 rounded-full truncate flex-shrink" title="${r.title}">${r.title}</span>` : ''}
+            </div>
+            <span class="flex-shrink-0 ml-2">${r.timestamp}</span>
+          </div>
+          <div class="flex flex-wrap gap-1.5 pt-1">
+            ${r.winners.map(w => `<span class="chip">${w}</span>`).join('')}
+          </div>
+        </div>`).join('');
+    }
+
+    // ===================================================================
+    // RESET
+    // ===================================================================
+    async function resetRaffle() {
+      if (!confirm('Reiniciar o sorteio? O histórico será apagado e os itens voltarão ao pool.')) return;
+
+      if (state.sessionCode) {
+        const result = await apiPost(`/api/session/${state.sessionCode}/reset`);
+        if (result.error) { alert('Erro ao reiniciar: ' + result.error); return; }
+      }
+
+      state.winners = [];
+      state.drawnPool.clear();
+      state.participants = [];
+
+      document.getElementById('result-cards').classList.add('hidden');
+      document.getElementById('result-empty').classList.remove('hidden');
+
+      updateHistoryUI();
+      updateParticipantsUI();
+    }
+
+    async function kickAllParticipants() {
+      if (!state.sessionCode) {
+        alert('Nenhuma sessão interativa iniciada.');
+        return;
+      }
+      if (state.participants.length === 0) {
+        alert('Nenhum participante conectado.');
+        return;
+      }
+      if (!confirm('Tem certeza que deseja expulsar TODOS os participantes? Eles serão desconectados da sessão.')) return;
+
+      const result = await apiPost(`/api/session/${state.sessionCode}/kick-all`);
+      if (result.error) {
+        alert('Erro ao expulsar participantes: ' + result.error);
+        return;
+      }
+
+      state.participants = [];
+      updateParticipantsUI();
+    }
+
+    // ===================================================================
+    // EXPORT
+    // ===================================================================
+    function exportSession() {
+      if (state.winners.length === 0) {
+        alert('Nenhum resultado para exportar. Realize pelo menos um sorteio.'); return;
+      }
+
+      const modeLabels = { numbers: 'Números', names: 'Lista de Nomes', interactive: 'Interativo' };
+      const lines = [
+        '=========================================',
+        '   SORTEADOR – RELATÓRIO DE SESSÃO',
+        '=========================================',
+        `Gerado em:                 ${new Date().toLocaleString('pt-BR')}`,
+        `Código da Sessão:          ${state.sessionCode || '–'}`,
+        `Total de Rodadas:          ${state.winners.length}`,
+        `Total de Itens Sorteados:  ${state.drawnPool.size}`,
+        '',
+        '-----------------------------------------',
+        'LOG DETALHADO DE RODADAS',
+        '-----------------------------------------',
+        ...state.winners.map(r => {
+          let header = `Rodada #${r.round}  |  Modo: ${modeLabels[r.mode]}  |  Hora: ${r.timestamp}`;
+          if (r.title) header += `  |  Sorteio: ${r.title}`;
+          return `${header}\nVencedores: ${r.winners.join(', ')}\n-----------------------------------------`;
+        }),
+        '',
+        'FIM DO RELATÓRIO'
+      ];
+
+      const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = Object.assign(document.createElement('a'), {
+        href: url,
+        download: `Sorteio_${state.sessionCode || 'relatorio'}_${Date.now()}.txt`
+      });
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // ===================================================================
+    // PARTICIPANT VIEW
+    // ===================================================================
+    let myParticipantId = '';
+
+    function initParticipantView() {
+      // Persistent ID per browser (survives page refreshes)
+      myParticipantId = localStorage.getItem('sorteador_participant_id');
+      if (!myParticipantId) {
+        myParticipantId = 'p_' + Math.random().toString(36).slice(2, 11);
+        localStorage.setItem('sorteador_participant_id', myParticipantId);
+      }
+
+      document.getElementById('part-join-submit').addEventListener('click', handleJoin);
+      document.getElementById('part-back-to-waiting').addEventListener('click', () => {
+        document.getElementById('participant-draw-screen').classList.add('hidden');
+        document.getElementById('participant-waiting').classList.remove('hidden');
+      });
+      document.getElementById('part-leave-btn').addEventListener('click', handleLeave);
+
+      // Restore previous session if still valid
+      restoreParticipantSession();
+    }
+
+    async function handleLeave() {
+      if (!confirm('Tem certeza que deseja sair deste sorteio?')) return;
+
+      const saved = localStorage.getItem('sorteador_part_session');
+      if (!saved) return;
+      const { code } = JSON.parse(saved);
+
+      try {
+        await fetch(`/api/session/${code}/leave`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ participantId: myParticipantId }),
+        });
+      } catch (err) {
+        console.error('Error leaving session:', err);
+      }
+
+      localStorage.removeItem('sorteador_part_session');
+      if (state.sseSource) state.sseSource.close();
+      showSection('join');
+    }
+
+    function showSection(section) {
+      document.getElementById('participant-join-form').classList.toggle('hidden', section !== 'join');
+      document.getElementById('participant-waiting').classList.toggle('hidden', section !== 'wait');
+      document.getElementById('participant-draw-screen').classList.toggle('hidden', section !== 'draw');
+    }
+
+    function showPartError(msg) {
+      const el = document.getElementById('part-join-error');
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    async function handleJoin() {
+      const code = document.getElementById('part-code-input').value.trim().toUpperCase();
+      const name = document.getElementById('part-name-input').value.trim();
+
+      if (code.length !== 6) { showPartError('O código deve ter exatamente 6 caracteres.'); return; }
+      if (!name) { showPartError('Informe seu nome.'); return; }
+
+      const result = await fetch(`/api/session/${code}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participantId: myParticipantId, name }),
+      }).then(r => r.json());
+
+      if (result.error) {
+        showPartError(result.error);
+        return;
+      }
+
+      // Save session locally
+      localStorage.setItem('sorteador_part_session', JSON.stringify({ name, code }));
+
+      document.getElementById('part-registered-name').innerText = name;
+      document.getElementById('part-registered-code').innerText = code;
+      showSection('wait');
+
+      // Start SSE listener
+      startParticipantSSE(code, name);
+    }
+
+    function restoreParticipantSession() {
+      const saved = localStorage.getItem('sorteador_part_session');
+      if (!saved) return;
+
+      const { name, code } = JSON.parse(saved);
+
+      // Check if session is still alive on server
+      fetch(`/api/session/${code}`)
+        .then(r => r.json())
+        .then(session => {
+          if (session.error) {
+            localStorage.removeItem('sorteador_part_session');
+            return;
+          }
+          document.getElementById('part-code-input').value = code;
+          document.getElementById('part-registered-name').innerText = name;
+          document.getElementById('part-registered-code').innerText = code;
+          showSection('wait');
+
+          // Re-register on server (refreshes participant list)
+          fetch(`/api/session/${code}/join`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ participantId: myParticipantId, name }),
+          });
+
+          startParticipantSSE(code, name);
+        })
+        .catch(() => localStorage.removeItem('sorteador_part_session'));
+    }
+
+    function startParticipantSSE(code, name) {
+      if (state.sseSource) state.sseSource.close();
+      state.sseSource = new EventSource(`/api/session/${code}/events`);
+
+      state.sseSource.onmessage = (e) => {
+        const event = JSON.parse(e.data);
+
+        if (event.type === 'draw') {
+          handleDrawEvent(event.round, name);
+        } else if (event.type === 'reset' || event.type === 'session_invalidated' || event.type === 'kick_all') {
+          if (event.type === 'session_invalidated') {
+            alert('A sessão foi encerrada pelo organizador.');
+          } else if (event.type === 'kick_all') {
+            alert('Você foi desconectado pelo organizador.');
+          }
+          localStorage.removeItem('sorteador_part_session');
+          state.sseSource.close();
+          showSection('join');
+        }
+      };
+    }
+
+    function handleDrawEvent(round, myName) {
+      const winners = round.winners;
+
+      document.getElementById('part-winners-list').innerHTML =
+        winners.map(w => `<div style="color:var(--text-primary);">${w}</div>`).join('');
+
+      const won = winners.includes(myName);
+      document.getElementById('part-state-win').classList.toggle('hidden', !won);
+      document.getElementById('part-state-lose').classList.toggle('hidden', won);
+
+      showSection('draw');
+
+      if (won) {
+        confetti({ particleCount: 90, spread: 55, origin: { y: 0.6 } });
+      }
+    }
+  </script>
+
+</body>
+
+</html>

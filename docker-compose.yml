@@ -1,0 +1,61 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PORT=3000
+      - NODE_ENV=production
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000" # Direct access in dev: http://localhost:3001
+    labels:
+      # ── Traefik labels (dev) ──────────────────────────────────────────────
+      # In production, Traefik already exists in the infra. These labels
+      # configure routing when running with the Traefik service below.
+      # For production, adjust the Host rule to your actual domain.
+      - "traefik.enable=true"
+      - "traefik.http.routers.sorteador.rule=Host(`sorteador.localhost`)"
+      - "traefik.http.routers.sorteador.entrypoints=web"
+      - "traefik.http.services.sorteador.loadbalancer.server.port=3000"
+      # SSE requires streaming — disable Traefik's response buffering
+      - "traefik.http.middlewares.sorteador-sse.headers.customresponseheaders.X-Accel-Buffering=no"
+      - "traefik.http.routers.sorteador.middlewares=sorteador-sse"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Port exposed only in dev for local inspection (e.g. redis-cli)
+    # Remove or comment out in production
+    #ports:
+    #  - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+  # ── Traefik (development only) ────────────────────────────────────────────
+  # In production this service already exists in the infrastructure.
+  # To use without Traefik in dev, access the app directly at http://localhost:3000
+  # and comment out this service and the 'labels' in the app service.
+  # traefik:
+  #   image: traefik:v3.0
+  #   restart: unless-stopped
+  #   command:
+  #     - "--api.insecure=true"
+  #     - "--providers.docker=true"
+  #     - "--providers.docker.exposedbydefault=false"
+  #     - "--entrypoints.web.address=:80"
+  #   ports:
+  #     - "80:80"
+  #     - "8088:8080"   # Traefik dashboard: http://localhost:8088
+  #   volumes:
+  #     - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+volumes:
+  redis_data:
