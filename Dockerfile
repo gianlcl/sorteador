@@ -1,13 +1,13 @@
 # ── Build stage: install only production deps ────────────────────────────────
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 # Copy package.json and package-lock.json for deterministic installs
 COPY package.json package-lock.json* ./
 # Install only production dependencies and clean cache to save space
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev
 
 # ── Runtime stage ─────────────────────────────────────────────────────────────
-FROM node:20-alpine AS runtime
+FROM node:24-alpine AS runtime
 WORKDIR /app
 
 # Use non-root user for better security
