@@ -295,6 +295,106 @@
       border-color: rgb(var(--color-primary-500));
     }
 
+    /* ===================== HELP BUTTON ===================== */
+    #help-btn {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      padding: 0.5rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: rgb(var(--color-primary-400));
+    }
+
+    #help-btn:hover {
+      border-color: rgb(var(--color-primary-500));
+      background: rgb(var(--color-primary-500) / 0.1);
+    }
+
+    /* ===================== HELP OVERLAY ===================== */
+    #help-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(1px);
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    #help-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .help-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 0.875rem 1rem;
+      max-width: 260px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      position: absolute;
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+      pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 10001;
+    }
+
+    .help-card h3 {
+      font-size: 0.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: rgb(var(--color-primary-600));
+      margin-bottom: 0.3rem;
+    }
+
+    .help-card p {
+      font-size: 0.72rem;
+      line-height: 1.5;
+      color: #475569;
+    }
+
+    .help-highlight-ring {
+      position: absolute;
+      border-radius: 999px;
+      border: 2px solid rgb(var(--color-primary-400));
+      box-shadow: 0 0 0 4px rgb(var(--color-primary-500) / 0.25),
+        0 0 20px rgb(var(--color-primary-500) / 0.4);
+      animation: ringPulse 2s ease-in-out infinite;
+      pointer-events: none;
+      cursor: help;
+      z-index: 10000;
+    }
+
+    #help-overlay.open .help-highlight-ring {
+      pointer-events: auto;
+    }
+
+    .help-highlight-ring:hover+.help-card,
+    .help-card:hover {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    @keyframes ringPulse {
+
+      0%,
+      100% {
+        box-shadow: 0 0 0 4px rgb(var(--color-primary-500) / 0.25), 0 0 20px rgb(var(--color-primary-500) / 0.4);
+      }
+
+      50% {
+        box-shadow: 0 0 0 8px rgb(var(--color-primary-500) / 0.15), 0 0 32px rgb(var(--color-primary-500) / 0.6);
+      }
+    }
+
     /* ===================== PARTICIPATE BTN ===================== */
     #participate-btn {
       display: flex;
@@ -467,9 +567,40 @@
           <i data-lucide="sun" id="icon-sun" class="h-5 w-5 text-amber-400 hidden"></i>
           <i data-lucide="moon" id="icon-moon" class="h-5 w-5 text-primary-400"></i>
         </button>
+
+        <!-- Help Button -->
+        <button id="help-btn" title="Ajuda" onclick="openHelp()">
+          <i data-lucide="circle-help" class="h-5 w-5"></i>
+        </button>
       </div>
     </div>
   </header>
+
+  <!-- ==================== HELP OVERLAY ==================== -->
+  <div id="help-overlay" role="dialog" aria-modal="true" aria-label="Ajuda">
+    <!-- Close button -->
+    <button onclick="closeHelp()"
+      style="position:absolute;top:1.25rem;right:1.25rem;z-index:1;background:var(--bg-card);border:1px solid var(--border);border-radius:0.75rem;padding:0.5rem;cursor:pointer;color:var(--text-secondary);transition:all 0.2s;"
+      onmouseover="this.style.color='var(--text-primary)';this.style.borderColor='rgb(var(--color-primary-500))'"
+      onmouseout="this.style.color='var(--text-secondary)';this.style.borderColor='var(--border)'">
+      <i data-lucide="x" style="width:1.25rem;height:1.25rem;"></i>
+    </button>
+
+    <!-- Centered title -->
+    <div
+      style="position:absolute;top:1.2rem;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;">
+      <p
+        style="font-size:0.75rem;font-weight:800;letter-spacing:0.02em;color:#ffffff;text-shadow: 0 2px 4px rgba(0,0,0,0.5);">
+        <i data-lucide="circle-help"
+          style="width:1rem;height:1rem;display:inline-block;vertical-align:middle;margin-right:0.3rem;"></i>
+        Passe o mouse sobre os anéis para ver os detalhes &mdash; pressione <kbd
+          style="background:var(--bg-input);border:1px solid var(--border);border-radius:0.3rem;padding:0.05rem 0.35rem;font-size:0.68rem;text-shadow:none;color:var(--text-primary)">ESC</kbd>
+        para fechar
+      </p>
+    </div>
+
+    <!-- Annotation cards will be injected by JS -->
+  </div>
 
   <!-- ==================== PARTICIPANT VIEW ==================== -->
   <main id="participant-view" class="hidden flex-1 flex-col items-center justify-center p-4 w-full max-w-md mx-auto">
@@ -937,6 +1068,11 @@
     style="border-top: 1px solid var(--border); color: var(--text-muted);">
     <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
       <p>&copy; 2026 Sorteador by gclabs.</p>
+      <a href="https://github.com/gianlcl/sorteador" target="_blank" rel="noopener noreferrer"
+        class="flex items-center hover:text-primary-500 transition-colors" style="color: var(--text-secondary);"
+        title="Código Fonte no GitHub">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/></svg>
+      </a>
     </div>
   </footer>
 
@@ -1111,6 +1247,232 @@
         }
       });
     }
+    // ===================================================================
+    // ===================================================================
+    // HELP OVERLAY
+    // ===================================================================
+    const HELP_ANNOTATIONS = [
+      {
+        targetId: 'help-btn',
+        title: '❓ Botão de Ajuda',
+        text: 'Abre esta sobreposição de ajuda. Clique em qualquer momento para ver o que cada elemento faz.',
+        cardSide: 'bottom-left',
+      },
+      {
+        targetId: 'theme-toggle',
+        title: '🌙 Tema',
+        text: 'Alterna entre o modo escuro e o modo claro da interface.',
+        cardSide: 'bottom-left',
+      },
+      {
+        targetId: 'participate-btn',
+        title: '👥 Participar de Sorteio',
+        text: 'Abre a tela de participante para que você ou outros possam entrar em um sorteio interativo usando o código da sessão.',
+        cardSide: 'bottom-left',
+      },
+      {
+        targetId: 'tab-numbers',
+        title: '🔢 Modo Números',
+        text: 'Sorteia números aleatórios dentro de um intervalo definido por você (mínimo, máximo e quantidade).',
+        cardSide: 'bottom-right',
+      },
+      {
+        targetId: 'tab-names',
+        title: '📋 Modo Lista',
+        text: 'Sorteia nomes ou itens de uma lista de texto que você preenche manualmente.',
+        cardSide: 'bottom-right',
+      },
+      {
+        targetId: 'tab-interactive',
+        title: '⚡ Modo Interativo',
+        text: 'Cria uma sessão ao vivo onde participantes entram pelo celular usando um código ou QR Code. Ideal para sorteios em eventos.',
+        cardSide: 'bottom-right',
+      },
+      {
+        targetId: 'draw-btn',
+        title: '▶️ Realizar Sorteio',
+        text: 'Executa o sorteio com as configurações atuais e exibe os vencedores com uma animação.',
+        cardSide: 'top-left',
+      },
+      {
+        targetId: 'theater-btn',
+        title: '🎭 Modo Teatro',
+        text: 'Expande para uma tela de apresentação ideal para uso com telões ou projetores em eventos. Exibe os sorteados de forma dramática e visível.',
+        cardSide: 'top-left',
+      },
+      {
+        targetId: 'reset-btn',
+        title: '🗑️ Reiniciar Sorteio',
+        text: 'Apaga todo o histórico de rodadas e devolve os itens ao pool, permitindo começar o sorteio do zero.',
+        cardSide: 'top-right',
+      },
+      {
+        targetId: 'card-active-participants',
+        title: '👤 Participantes Ativos',
+        text: 'Lista os participantes conectados à sessão em tempo real. Participantes já sorteados aparecem riscados e marcados com "Sorteado".',
+        cardSide: 'left',
+      },
+      {
+        targetId: 'kick-all-btn',
+        title: '🚫 Limpar Participantes',
+        text: 'Remove todos os participantes conectados à sessão atual imediatamente.',
+        cardSide: 'top-right',
+      },
+      {
+        targetId: 'export-btn',
+        title: '📥 Exportar',
+        text: 'Faz o download do histórico completo de sorteios em formato TXT.',
+        cardSide: 'top-left',
+      },
+      {
+        targetId: 'interactive-qty',
+        title: '🔢 Qtd. por Rodada',
+        text: 'Define quantos participantes serão sorteados de uma única vez na próxima rodada.',
+        cardSide: 'bottom-right',
+      },
+      {
+        targetId: 'interactive-title',
+        title: '🏷️ Nome do Sorteio',
+        text: 'Um rótulo opcional (ex: "Prêmio 1") para organizar o sorteio. Aparecerá no histórico e no arquivo exportado.',
+        cardSide: 'bottom-right',
+      },
+      {
+        targetId: 'interactive-repeat',
+        title: '🔁 Repetir Sorteados',
+        text: 'Se marcado, participantes que já foram sorteados antes poderão ganhar novamente nas próximas rodadas.',
+        cardSide: 'bottom-right',
+      },
+      {
+        targetId: 'history-rounds-list',
+        title: '📜 Histórico de Rodadas',
+        text: 'Registra todos os sorteios realizados. Você pode rever os ganhadores a qualquer momento.',
+        cardSide: 'left',
+      },
+      {
+        targetId: 'num-min',
+        title: '🔢 Número Mínimo',
+        text: 'Define o número inicial do intervalo para o sorteio.',
+        cardSide: 'bottom-right',
+      },
+      {
+        targetId: 'num-max',
+        title: '🔢 Número Máximo',
+        text: 'Define o número final do intervalo para o sorteio.',
+        cardSide: 'bottom-right',
+      },
+      {
+        targetId: 'num-qty',
+        title: '🔢 Qtd. de Números',
+        text: 'Quantos números serão sorteados de uma única vez nesta rodada.',
+        cardSide: 'bottom-right',
+      },
+      {
+        targetId: 'names-list',
+        title: '📝 Lista de Nomes',
+        text: 'Insira os itens/nomes que participarão do sorteio, separando-os por linha.',
+        cardSide: 'bottom-right',
+      },
+      {
+        targetId: 'names-qty',
+        title: '🔢 Qtd. de Nomes',
+        text: 'Quantos nomes serão sorteados de uma única vez nesta rodada.',
+        cardSide: 'bottom-right',
+      },
+    ];
+
+    function getRect(el) {
+      return el.getBoundingClientRect();
+    }
+
+    function placeCard(card, ring, targetEl, side) {
+      const r = getRect(targetEl);
+      const GAP = 14;
+      const RING_PAD = 6;
+
+      // Position pulsing ring over the target
+      ring.style.top = (r.top - RING_PAD + window.scrollY) + 'px';
+      ring.style.left = (r.left - RING_PAD + window.scrollX) + 'px';
+      ring.style.width = (r.width + RING_PAD * 2) + 'px';
+      ring.style.height = (r.height + RING_PAD * 2) + 'px';
+      ring.style.borderRadius = Math.min(r.width, r.height) > 60 ? '1rem' : '999px';
+
+      // Position tooltip card
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      let top, left;
+      const CARD_W = 260;
+      const CARD_H = 110; // estimate
+
+      if (side === 'bottom-right') {
+        top = r.bottom + GAP + window.scrollY;
+        left = r.left + window.scrollX;
+      } else if (side === 'bottom-left') {
+        top = r.bottom + GAP + window.scrollY;
+        left = r.right - CARD_W + window.scrollX;
+      } else if (side === 'top-right') {
+        top = r.top - CARD_H - GAP + window.scrollY;
+        left = r.left + window.scrollX;
+      } else if (side === 'top-left') {
+        top = r.top - CARD_H - GAP + window.scrollY;
+        left = r.right - CARD_W + window.scrollX;
+      } else if (side === 'left') {
+        top = r.top + window.scrollY;
+        left = r.left - CARD_W - GAP + window.scrollX;
+      } else { // right
+        top = r.top + window.scrollY;
+        left = r.right + GAP + window.scrollX;
+      }
+
+      // Keep within viewport
+      left = Math.max(8, Math.min(left, vw - CARD_W - 8));
+      top = Math.max(56, top);
+
+      card.style.top = top + 'px';
+      card.style.left = left + 'px';
+      card.style.animationDelay = '0ms';
+    }
+
+    function openHelp() {
+      const overlay = document.getElementById('help-overlay');
+      // Remove previously injected annotations
+      overlay.querySelectorAll('.help-card,.help-highlight-ring').forEach(el => el.remove());
+
+      HELP_ANNOTATIONS.forEach((ann, i) => {
+        const targetEl = document.getElementById(ann.targetId);
+        if (!targetEl) return;
+
+        // Skip elements that are currently hidden
+        if (targetEl.offsetParent === null && targetEl.id !== 'help-btn' && targetEl.id !== 'theme-toggle' && targetEl.id !== 'participate-btn') return;
+
+        // Pulsing ring
+        const ring = document.createElement('div');
+        ring.className = 'help-highlight-ring';
+        ring.style.animationDelay = (i * 80) + 'ms';
+        overlay.appendChild(ring);
+
+        // Tooltip card
+        const card = document.createElement('div');
+        card.className = 'help-card';
+        card.style.animationDelay = (i * 80) + 'ms';
+        card.innerHTML = `<h3>${ann.title}</h3><p>${ann.text}</p>`;
+        overlay.appendChild(card);
+
+        placeCard(card, ring, targetEl, ann.cardSide);
+      });
+
+      overlay.classList.add('open');
+      lucide.createIcons({ nodes: [overlay] });
+    }
+
+    function closeHelp() {
+      document.getElementById('help-overlay').classList.remove('open');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeHelp();
+    });
+
     // ===================================================================
     // THEME
     // ===================================================================
